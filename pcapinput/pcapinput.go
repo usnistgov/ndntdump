@@ -1,0 +1,156 @@
+// Package pcapinput opens GoPacket input handle.
+package pcapinput
+
+import (
+	"compress/gzip"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/afpacket"
+	"github.com/google/gopacket/pcapgo"
+	"go.uber.org/atomic"
+	"go.uber.org/multierr"
+)
+
+// Handle represents a pcap input handle.
+type Handle interface {
+	gopacket.ZeroCopyPacketDataSource
+	io.Closer
+	Name() string
+}
+
+// Open creates a pcap input handle.
+//  ifname: network interface name.
+//  filename: input filename.
+func Open(ifname, filename string) (handle Handle, e error) {
+	if (ifname == "") == (filename == "") {
+		return nil, errors.New("exactly one of ifname and filename should be specified")
+	}
+
+	if ifname != "" {
+		hdl := &netifHandle{}
+		if e = hdl.open(ifname); e != nil {
+			return nil, e
+		}
+		return hdl, nil
+	}
+
+	hdl := &fileHandle{}
+	if e = hdl.open(filename); e != nil {
+		hdl.Close()
+		return nil, e
+	}
+	return hdl, nil
+}
+
+type netifHandle struct {
+	ifname  string
+	tp      *afpacket.TPacket
+	mu      sync.RWMutex
+	closing atomic.Bool
+}
+
+func (hdl *netifHandle) open(ifname string) (e error) {
+	hdl.ifname = ifname
+	hdl.tp, e = afpacket.NewTPacket(afpacket.OptInterface(ifname), afpacket.OptPollTimeout(time.Second))
+	return e
+}
+
+func (hdl *netifHandle) Name() string {
+	return hdl.ifname
+}
+
+func (hdl *netifHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {
+	hdl.mu.RLock()
+	defer hdl.mu.RUnlock()
+
+	if hdl.closing.Load() {
+		return nil, gopacket.CaptureInfo{}, io.EOF
+	}
+
+RETRY:
+	wire, ci, e = hdl.tp.ZeroCopyReadPacketData()
+	if e != nil && errors.Is(e, afpacket.ErrTimeout) {
+		if hdl.closing.Load() {
+			e = io.EOF
+		} else {
+			goto RETRY
+		}
+	}
+
+	return
+}
+
+func (hdl *netifHandle) Close() error {
+	if wasClosed := hdl.closing.Swap(true); wasClosed {
+		return nil
+	}
+	hdl.mu.Lock()
+	hdl.tp.Close()
+	return nil
+}
+
+type fileHandle struct {
+	file       *os.File
+	decompress *gzip.Reader
+	reader     *pcapgo.Reader
+	ngr        *pcapgo.NgReader
+}
+
+func (hdl *fileHandle) open(filename string) (e error) {
+	if hdl.file, e = os.Open(filename); e != nil {
+		return e
+	}
+	pcapStream := io.Reader(hdl.file)
+
+	if ext := filepath.Ext(filename); ext == ".gz" {
+		if hdl.decompress, e = gzip.NewReader(hdl.file); e != nil {
+			return e
+		}
+		pcapStream = hdl.decompress
+		filename = filename[:len(filename)-len(ext)]
+	}
+
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".pcap":
+		hdl.reader, e = pcapgo.NewReader(pcapStream)
+	case ".pcapng":
+		hdl.ngr, e = pcapgo.NewNgReader(pcapStream, pcapgo.NgReaderOptions{SkipUnknownVersion: true})
+	default:
+		return errors.New("unknown file extension")
+	}
+	return e
+}
+
+func (hdl *fileHandle) Name() string {
+	if hdl.ngr != nil {
+		if intf, e := hdl.ngr.Interface(0); e == nil {
+			return intf.Name
+		}
+	}
+	return hdl.file.Name()
+}
+
+func (hdl *fileHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {
+	if hdl.reader != nil {
+		return hdl.reader.ZeroCopyReadPacketData()
+	}
+	return hdl.ngr.ZeroCopyReadPacketData()
+}
+
+func (hdl *fileHandle) Close() error {
+	errs := []error{}
+	if hdl.decompress != nil {
+		errs = append(errs, hdl.decompress.Close())
+	}
+	if hdl.file != nil {
+		errs = append(errs, hdl.file.Close())
+	}
+	return multierr.Combine(errs...)
+}

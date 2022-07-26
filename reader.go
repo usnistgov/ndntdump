@@ -104,6 +104,8 @@ RETRY:
 	case pkt.Nack != nil:
 		rec.Type = PktTypeNack
 		rec.Name = pkt.Nack.Name()
+	default:
+		rec.Type = PktTypeIdle
 	}
 
 	rec.Timestamp = rec.CaptureInfo.Timestamp.UnixNano()

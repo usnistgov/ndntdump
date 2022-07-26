@@ -2,46 +2,50 @@
 package main
 
 import (
-	"compress/gzip"
+	"errors"
+	"io"
 	"math/rand"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/google/gopacket/afpacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
 	"github.com/urfave/cli/v2"
 	"github.com/yoursunny/ndn6dump"
+	"github.com/yoursunny/ndn6dump/pcapinput"
+	"github.com/yoursunny/ndn6dump/recordoutput"
 	"inet.af/netaddr"
 )
 
 var (
-	netif   *net.Interface
 	keepIPs *netaddr.IPSet
-	handle  *afpacket.TPacket
+	input   pcapinput.Handle
 	reader  *ndn6dump.Reader
-	output  *os.File
-	gzOut   *gzip.Writer
-	writer  *pcapgo.NgWriter
+	output  recordoutput.RecordOutput
 )
 
 var app = &cli.App{
 	Name: "ndn6dump",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:     "ifname",
-			Aliases:  []string{"i"},
-			Usage:    "network interface name",
-			Required: true,
+			Name:    "ifname",
+			Aliases: []string{"i"},
+			Usage:   "network interface name",
 		},
 		&cli.StringFlag{
-			Name:     "output",
-			Aliases:  []string{"w"},
-			Usage:    "output filename",
-			Required: true,
+			Name:    "input",
+			Aliases: []string{"r"},
+			Usage:   "input filename",
+		},
+		&cli.StringFlag{
+			Name:    "pcapng",
+			Aliases: []string{"w"},
+			Usage:   ".pcapng.gz output filename",
+		},
+		&cli.StringFlag{
+			Name:    "json",
+			Aliases: []string{"L"},
+			Usage:   ".json.gz output filename",
 		},
 		&cli.StringSliceFlag{
 			Name:    "keep-ip",
@@ -49,70 +53,45 @@ var app = &cli.App{
 			Usage:   "don't anonymize IP prefix",
 		},
 	},
-	Before: func(c *cli.Context) (e error) {
-		if netif, e = net.InterfaceByName(c.String("ifname")); e != nil {
+	Action: func(c *cli.Context) (e error) {
+		if input, e = pcapinput.Open(c.String("ifname"), c.String("input")); e != nil {
 			return cli.Exit(e, 1)
 		}
-
 		if keepIPs, e = ndn6dump.ParseIPSet(c.StringSlice("keep-ip")); e != nil {
 			return cli.Exit(e, 1)
 		}
+		reader = ndn6dump.NewReader(input, ndn6dump.NewIPAnonymizer(keepIPs))
 
-		return nil
-	},
-	Action: func(c *cli.Context) (e error) {
-		if handle, e = afpacket.NewTPacket(afpacket.OptInterface(netif.Name)); e != nil {
-			return cli.Exit(e, 1)
-		}
-		reader = ndn6dump.NewReader(handle, ndn6dump.NewIPAnonymizer(keepIPs))
-
-		if output, e = os.OpenFile(c.String("output"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666); e != nil {
-			return cli.Exit(e, 1)
-		}
-		gzOut, _ = gzip.NewWriterLevel(output, gzip.BestSpeed)
-
-		if writer, e = pcapgo.NewNgWriterInterface(gzOut, pcapgo.NgInterface{
-			Name:     netif.Name,
-			LinkType: layers.LinkTypeEthernet,
-		}, pcapgo.NgWriterOptions{
-			SectionInfo: pcapgo.NgSectionInfo{
-				Application: "pcapgo",
-			},
-		}); e != nil {
+		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {
 			return cli.Exit(e, 1)
 		}
 
 		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGINT)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sig)
+		go func() {
+			<-sig
+			input.Close()
+		}()
 
 		for {
-			select {
-			case <-sig:
-				return nil
-			default:
-			}
-
 			rec, e := reader.Read()
 			if e != nil {
+				if errors.Is(e, io.EOF) {
+					return nil
+				}
 				return cli.Exit(e, 1)
 			}
 
-			e = writer.WritePacket(rec.CaptureInfo, rec.Wire)
+			e = output.Write(rec)
 			if e != nil {
 				return cli.Exit(e, 1)
 			}
 		}
 	},
 	After: func(c *cli.Context) error {
-		if handle != nil {
-			handle.Close()
-		}
-		if writer != nil {
-			writer.Flush()
-		}
-		if gzOut != nil {
-			gzOut.Close()
+		if input != nil {
+			input.Close()
 		}
 		if output != nil {
 			output.Close()

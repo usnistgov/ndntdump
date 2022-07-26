@@ -6,6 +6,8 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/usnistgov/ndn-dpdk v0.0.0-20220722210140-f65cbb336de3
+	go.uber.org/atomic v1.9.0
+	go.uber.org/multierr v1.8.0
 	inet.af/netaddr v0.0.0-20220617031823-097006376321
 )
 

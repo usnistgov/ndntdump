@@ -14,6 +14,7 @@ const (
 	PktTypeInterest PktType = "I"
 	PktTypeData     PktType = "D"
 	PktTypeNack     PktType = "N"
+	PktTypeIdle     PktType = "E"
 )
 
 // Record describes a parsed NDN packet.
