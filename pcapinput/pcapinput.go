@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 )
@@ -22,14 +24,15 @@ type Handle interface {
 	gopacket.ZeroCopyPacketDataSource
 	io.Closer
 	Name() string
+	LocalMAC() net.HardwareAddr
 }
 
 // Open creates a pcap input handle.
 //  ifname: network interface name.
 //  filename: input filename.
-func Open(ifname, filename string) (handle Handle, e error) {
+func Open(ifname, filename, local string) (handle Handle, e error) {
 	if (ifname == "") == (filename == "") {
-		return nil, errors.New("exactly one of ifname and filename should be specified")
+		return nil, errors.New("exactly one of ifname and filename+local should be specified")
 	}
 
 	if ifname != "" {
@@ -40,7 +43,11 @@ func Open(ifname, filename string) (handle Handle, e error) {
 		return hdl, nil
 	}
 
-	hdl := &fileHandle{}
+	localMAC, e := net.ParseMAC(local)
+	if e != nil || !macaddr.IsUnicast(localMAC) {
+		return nil, errors.New("invalid local MAC address")
+	}
+	hdl := &fileHandle{local: localMAC}
 	if e = hdl.open(filename); e != nil {
 		hdl.Close()
 		return nil, e
@@ -63,6 +70,13 @@ func (hdl *netifHandle) open(ifname string) (e error) {
 
 func (hdl *netifHandle) Name() string {
 	return hdl.ifname
+}
+
+func (hdl *netifHandle) LocalMAC() net.HardwareAddr {
+	if netif, _ := net.InterfaceByName(hdl.ifname); netif != nil {
+		return netif.HardwareAddr
+	}
+	return nil
 }
 
 func (hdl *netifHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {
@@ -96,6 +110,7 @@ func (hdl *netifHandle) Close() error {
 }
 
 type fileHandle struct {
+	local      net.HardwareAddr
 	file       *os.File
 	decompress *gzip.Reader
 	reader     *pcapgo.Reader
@@ -135,6 +150,10 @@ func (hdl *fileHandle) Name() string {
 		}
 	}
 	return hdl.file.Name()
+}
+
+func (hdl *fileHandle) LocalMAC() net.HardwareAddr {
+	return hdl.local
 }
 
 func (hdl *fileHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {

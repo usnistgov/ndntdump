@@ -1,29 +1,28 @@
 package ndn6dump
 
 import (
-	"bytes"
+	"net"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/ndnlayer"
 )
 
 var lotsOfZeros [65536]byte
 
-func saveFlowAddrs[A ~[]byte](flow []byte, src, dst A) []byte {
-	if bytes.Compare(src, dst) < 0 {
-		flow = append(flow, src...)
-		flow = append(flow, dst...)
-	} else {
-		flow = append(flow, dst...)
-		flow = append(flow, src...)
+func saveFlowAddrs[A ~[]byte](flow []byte, dir Direction, src, dst A) []byte {
+	if dir == DirectionRX {
+		src, dst = dst, src
 	}
+	flow = append(flow, src...)
+	flow = append(flow, dst...)
 	return flow
 }
 
-func saveFlowPorts[N ~uint16](flow []byte, proto uint8, src, dst N) []byte {
-	if src > dst {
+func saveFlowPorts[N ~uint16](flow []byte, dir Direction, proto uint8, src, dst N) []byte {
+	if dir == DirectionRX {
 		src, dst = dst, src
 	}
 	return append(flow, proto, uint8(src>>8), uint8(src), uint8(dst>>8), uint8(dst))
@@ -31,8 +30,9 @@ func saveFlowPorts[N ~uint16](flow []byte, proto uint8, src, dst N) []byte {
 
 // Reader reads NDN packets from ZeroCopyPacketDataSource.
 type Reader struct {
-	src gopacket.ZeroCopyPacketDataSource
-	ipa *IPAnonymizer
+	src   gopacket.ZeroCopyPacketDataSource
+	local net.HardwareAddr
+	ipa   *IPAnonymizer
 
 	dlp     *gopacket.DecodingLayerParser
 	decoded []gopacket.LayerType
@@ -59,22 +59,31 @@ RETRY:
 	}
 
 	ethOnly := true
+	var dir Direction
 	var pkt *ndn.Packet
 	for _, layerType := range r.decoded {
 		switch layerType {
 		case layers.LayerTypeEthernet:
+			switch {
+			case macaddr.Equal(r.local, r.eth.SrcMAC):
+				dir = DirectionTX
+			case macaddr.Equal(r.local, r.eth.DstMAC):
+				dir = DirectionRX
+			default:
+				goto RETRY
+			}
 		case layers.LayerTypeIPv4:
+			ethOnly = false
 			r.ipa.Anonymize(r.ip4.SrcIP)
 			r.ipa.Anonymize(r.ip4.DstIP)
-			ethOnly = false
-			rec.Flow = saveFlowAddrs(rec.Flow, r.ip4.SrcIP, r.ip4.DstIP)
+			rec.Flow = saveFlowAddrs(rec.Flow, dir, r.ip4.SrcIP, r.ip4.DstIP)
 		case layers.LayerTypeIPv6:
+			ethOnly = false
 			r.ipa.Anonymize(r.ip6.SrcIP)
 			r.ipa.Anonymize(r.ip6.DstIP)
-			ethOnly = false
-			rec.Flow = saveFlowAddrs(rec.Flow, r.ip6.SrcIP, r.ip6.DstIP)
+			rec.Flow = saveFlowAddrs(rec.Flow, dir, r.ip6.SrcIP, r.ip6.DstIP)
 		case layers.LayerTypeUDP:
-			rec.Flow = saveFlowPorts(rec.Flow, uint8(layers.IPProtocolUDP), r.udp.SrcPort, r.udp.DstPort)
+			rec.Flow = saveFlowPorts(rec.Flow, dir, uint8(layers.IPProtocolUDP), r.udp.SrcPort, r.udp.DstPort)
 		case ndnlayer.LayerTypeTLV:
 			rec.Size = len(r.tlv.LayerContents())
 		case ndnlayer.LayerTypeNDN:
@@ -82,35 +91,37 @@ RETRY:
 		}
 	}
 
+	var pktType PktType
 	switch {
 	case pkt == nil:
 		goto RETRY
 	case pkt.Fragment != nil:
-		rec.Type = PktTypeFragment
+		pktType = PktTypeFragment
 	case pkt.Interest != nil:
-		rec.Type = PktTypeInterest
+		pktType = PktTypeInterest
 		rec.Name = pkt.Interest.Name
 		rec.CanBePrefix = pkt.Interest.CanBePrefix
 		rec.MustBeFresh = pkt.Interest.MustBeFresh
 		copy(pkt.Interest.AppParameters, lotsOfZeros[:])
 		copy(pkt.Interest.SigValue, lotsOfZeros[:])
 	case pkt.Data != nil:
-		rec.Type = PktTypeData
+		pktType = PktTypeData
 		rec.Name = pkt.Data.Name
 		rec.DataDigest = pkt.Data.ComputeDigest()
 		rec.FinalBlock = pkt.Data.IsFinalBlock()
 		copy(pkt.Data.Content, lotsOfZeros[:])
 		copy(pkt.Data.SigValue, lotsOfZeros[:])
 	case pkt.Nack != nil:
-		rec.Type = PktTypeNack
+		pktType = PktTypeNack
 		rec.Name = pkt.Nack.Name()
 	default:
-		rec.Type = PktTypeIdle
+		pktType = PktTypeIdle
 	}
 
+	rec.DirType = string(dir) + string(pktType)
 	rec.Timestamp = rec.CaptureInfo.Timestamp.UnixNano()
 	if ethOnly {
-		rec.Flow = saveFlowAddrs(rec.Flow, r.eth.SrcMAC, r.eth.DstMAC)
+		rec.Flow = saveFlowAddrs(rec.Flow, dir, r.eth.SrcMAC, r.eth.DstMAC)
 	}
 
 	rec.CaptureInfo.InterfaceIndex = 0
@@ -119,10 +130,11 @@ RETRY:
 }
 
 // NewReader creates Reader.
-func NewReader(src gopacket.ZeroCopyPacketDataSource, ipa *IPAnonymizer) (r *Reader) {
+func NewReader(src gopacket.ZeroCopyPacketDataSource, local net.HardwareAddr, ipa *IPAnonymizer) (r *Reader) {
 	r = &Reader{
-		src: src,
-		ipa: ipa,
+		src:   src,
+		local: local,
+		ipa:   ipa,
 	}
 
 	r.dlp = gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, &r.eth, &r.ip4, &r.ip6, &r.udp, &r.tlv, &r.ndn)

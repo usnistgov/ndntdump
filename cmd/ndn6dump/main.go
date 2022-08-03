@@ -25,7 +25,8 @@ var (
 )
 
 var app = &cli.App{
-	Name: "ndn6dump",
+	Name:  "ndn6dump",
+	Usage: "capture, anonymize, and analyze NDN traffic",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "ifname",
@@ -36,6 +37,10 @@ var app = &cli.App{
 			Name:    "input",
 			Aliases: []string{"r"},
 			Usage:   "input filename",
+		},
+		&cli.StringFlag{
+			Name:  "local",
+			Usage: "local MAC address",
 		},
 		&cli.StringFlag{
 			Name:    "pcapng",
@@ -54,13 +59,13 @@ var app = &cli.App{
 		},
 	},
 	Action: func(c *cli.Context) (e error) {
-		if input, e = pcapinput.Open(c.String("ifname"), c.String("input")); e != nil {
+		if input, e = pcapinput.Open(c.String("ifname"), c.String("input"), c.String("local")); e != nil {
 			return cli.Exit(e, 1)
 		}
 		if keepIPs, e = ndn6dump.ParseIPSet(c.StringSlice("keep-ip")); e != nil {
 			return cli.Exit(e, 1)
 		}
-		reader = ndn6dump.NewReader(input, ndn6dump.NewIPAnonymizer(keepIPs))
+		reader = ndn6dump.NewReader(input, input.LocalMAC(), ndn6dump.NewIPAnonymizer(keepIPs))
 
 		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {
 			return cli.Exit(e, 1)

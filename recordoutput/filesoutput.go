@@ -46,6 +46,7 @@ func OpenFiles(ifname, ndjsonFilename, pcapngFilename string) (ro RecordOutput, 
 			return nil, e
 		}
 		o.ndjsonEncoder = json.NewEncoder(w)
+		o.ndjsonEncoder.SetEscapeHTML(false)
 	}
 
 	if pcapngFilename != "" {

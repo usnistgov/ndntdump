@@ -5,6 +5,15 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndn"
 )
 
+// Direction indicates traffic direction.
+type Direction string
+
+// Direction values.
+const (
+	DirectionRX Direction = ">"
+	DirectionTX Direction = "<"
+)
+
 // PktType indicates NDN packet type.
 type PktType string
 
@@ -22,11 +31,11 @@ type Record struct {
 	Wire        []byte               `json:"-"`
 	CaptureInfo gopacket.CaptureInfo `json:"-"`
 
+	DirType   string `json:"t"`    // packet direction and type
 	Timestamp int64  `json:"ts"`   // Unix epoch nanoseconds
 	Flow      []byte `json:"flow"` // flow key
 	Size      int    `json:"size"` // packet size at NDNLPv2 layer
 
-	Type        PktType  `json:"type"`                 // packet type
 	Name        ndn.Name `json:"name,omitempty"`       // packet name
 	CanBePrefix bool     `json:"cbp,omitempty"`        // Interest CanBePrefix
 	MustBeFresh bool     `json:"mbf,omitempty"`        // Interest MustBeFresh
