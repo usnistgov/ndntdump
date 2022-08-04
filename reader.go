@@ -7,10 +7,22 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"github.com/usnistgov/ndn-dpdk/ndn"
+	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/ndnlayer"
+	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
 )
 
 var lotsOfZeros [65536]byte
+
+func zeroizeInterestPayload(interest *ndn.Interest) {
+	copy(interest.AppParameters, lotsOfZeros[:])
+	copy(interest.SigValue, lotsOfZeros[:])
+}
+
+func zeroizeDataPayload(data *ndn.Data) {
+	copy(data.Content, lotsOfZeros[:])
+	copy(data.SigValue, lotsOfZeros[:])
+}
 
 func saveFlowAddrs[A ~[]byte](flow []byte, dir Direction, src, dst A) []byte {
 	if dir == DirectionRX {
@@ -85,7 +97,7 @@ RETRY:
 		case layers.LayerTypeUDP:
 			rec.Flow = saveFlowPorts(rec.Flow, dir, uint8(layers.IPProtocolUDP), r.udp.SrcPort, r.udp.DstPort)
 		case ndnlayer.LayerTypeTLV:
-			rec.Size = len(r.tlv.LayerContents())
+			rec.Size2 = len(r.tlv.LayerContents())
 		case ndnlayer.LayerTypeNDN:
 			pkt = r.ndn.Packet
 		}
@@ -99,23 +111,18 @@ RETRY:
 		pktType = PktTypeFragment
 	case pkt.Interest != nil:
 		pktType = PktTypeInterest
-		rec.Name = pkt.Interest.Name
-		rec.CanBePrefix = pkt.Interest.CanBePrefix
-		rec.MustBeFresh = pkt.Interest.MustBeFresh
-		copy(pkt.Interest.AppParameters, lotsOfZeros[:])
-		copy(pkt.Interest.SigValue, lotsOfZeros[:])
+		rec.SaveInterest(*pkt.Interest, an.NackNone)
+		zeroizeInterestPayload(pkt.Interest)
 	case pkt.Data != nil:
 		pktType = PktTypeData
-		rec.Name = pkt.Data.Name
-		rec.DataDigest = pkt.Data.ComputeDigest()
-		rec.FinalBlock = pkt.Data.IsFinalBlock()
-		copy(pkt.Data.Content, lotsOfZeros[:])
-		copy(pkt.Data.SigValue, lotsOfZeros[:])
+		rec.SaveData(*pkt.Data)
+		zeroizeDataPayload(pkt.Data)
 	case pkt.Nack != nil:
 		pktType = PktTypeNack
-		rec.Name = pkt.Nack.Name()
+		rec.SaveInterest(pkt.Nack.Interest, pkt.Nack.Reason)
+		zeroizeInterestPayload(&pkt.Nack.Interest)
 	default:
-		pktType = PktTypeIdle
+		goto RETRY
 	}
 
 	rec.DirType = string(dir) + string(pktType)
@@ -124,9 +131,52 @@ RETRY:
 		rec.Flow = saveFlowAddrs(rec.Flow, dir, r.eth.SrcMAC, r.eth.DstMAC)
 	}
 
+	if frag := pkt.Fragment; frag != nil {
+		if frag.FragIndex == 0 {
+			r.readFragment(pkt.Lp, *frag, &rec)
+		}
+	} else {
+		switch r.tlv.Element.Type {
+		case an.TtInterest, an.TtData:
+			rec.Size3 = r.tlv.Element.Size()
+		case an.TtLpPacket:
+			d := tlv.DecodingBuffer(r.tlv.Element.Value)
+			for _, child := range d.Elements() {
+				if child.Type == an.TtLpPayload {
+					rec.Size3 = child.Length()
+				}
+			}
+		}
+	}
+
 	rec.CaptureInfo.InterfaceIndex = 0
 	rec.CaptureInfo.AncillaryData = nil
 	return
+}
+
+func (Reader) readFragment(lpl3 ndn.LpL3, frag ndn.LpFragment, rec *Record) {
+	var payload incompleteTLV
+	if _, e := payload.Decode(frag.Payload); e != nil {
+		return
+	}
+
+	switch payload.Type {
+	case an.TtInterest:
+		var interest ndn.Interest
+		interest.UnmarshalBinary(payload.Value) // ignore error
+		if lpl3.NackReason == an.NackNone {
+			rec.DirType += string(PktTypeInterest)
+		} else {
+			rec.DirType += string(PktTypeNack)
+		}
+		rec.SaveInterest(interest, lpl3.NackReason)
+	case an.TtData:
+		var data ndn.Data
+		data.UnmarshalBinary(payload.Value) // ignore error
+		rec.DirType += string(PktTypeData)
+		rec.SaveData(data)
+	}
+	rec.Size3 = payload.Size
 }
 
 // NewReader creates Reader.
@@ -140,4 +190,32 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, local net.HardwareAddr, ip
 	r.dlp = gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, &r.eth, &r.ip4, &r.ip6, &r.udp, &r.tlv, &r.ndn)
 	r.dlp.IgnoreUnsupported = true
 	return r
+}
+
+type incompleteTLV struct {
+	Size   int
+	Type   uint32
+	Length int
+	Value  []byte
+}
+
+func (ele *incompleteTLV) Decode(wire []byte) (rest []byte, e error) {
+	var typ, length tlv.VarNum
+	rest, e = typ.Decode(wire)
+	if e != nil {
+		return nil, e
+	}
+	rest, e = length.Decode(rest)
+	if e != nil {
+		return nil, e
+	}
+	ele.Type, ele.Length = uint32(typ), int(length)
+	ele.Size = len(wire) - len(rest) + ele.Length
+
+	if len(rest) >= ele.Length {
+		ele.Value, rest = rest[:ele.Length], rest[ele.Length:]
+	} else {
+		ele.Value, rest = rest, nil
+	}
+	return rest, nil
 }

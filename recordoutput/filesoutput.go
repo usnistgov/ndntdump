@@ -94,7 +94,7 @@ func (o *filesOutput) Close() error {
 		errs = append(errs, o.pcapngWriter.Flush())
 	}
 	if o.pcapngCompress != nil {
-		errs = append(errs, o.pcapngCompress.Flush())
+		errs = append(errs, o.pcapngCompress.Close())
 	}
 	if o.pcapngFile != nil {
 		errs = append(errs, o.pcapngFile.Close())

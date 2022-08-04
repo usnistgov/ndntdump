@@ -23,7 +23,6 @@ const (
 	PktTypeInterest PktType = "I"
 	PktTypeData     PktType = "D"
 	PktTypeNack     PktType = "N"
-	PktTypeIdle     PktType = "E"
 )
 
 // Record describes a parsed NDN packet.
@@ -31,14 +30,27 @@ type Record struct {
 	Wire        []byte               `json:"-"`
 	CaptureInfo gopacket.CaptureInfo `json:"-"`
 
-	DirType   string `json:"t"`    // packet direction and type
-	Timestamp int64  `json:"ts"`   // Unix epoch nanoseconds
-	Flow      []byte `json:"flow"` // flow key
-	Size      int    `json:"size"` // packet size at NDNLPv2 layer
+	DirType   string `json:"t"`     // packet direction and type
+	Timestamp int64  `json:"ts"`    // Unix epoch nanoseconds
+	Flow      []byte `json:"flow"`  // flow key
+	Size2     int    `json:"size2"` // packet size at NDNLPv2 layer
 
+	Size3       int      `json:"size3,omitempty"`      // packet size at L3
+	NackReason  uint8    `json:"nackReason,omitempty"` // Nack reason
 	Name        ndn.Name `json:"name,omitempty"`       // packet name
 	CanBePrefix bool     `json:"cbp,omitempty"`        // Interest CanBePrefix
 	MustBeFresh bool     `json:"mbf,omitempty"`        // Interest MustBeFresh
-	DataDigest  []byte   `json:"dataDigest,omitempty"` // Data implicit digest
 	FinalBlock  bool     `json:"finalBlock,omitempty"` // Data is final block
+}
+
+func (rec *Record) SaveInterest(interest ndn.Interest, nackReason uint8) {
+	rec.Name = interest.Name
+	rec.CanBePrefix = interest.CanBePrefix
+	rec.MustBeFresh = interest.MustBeFresh
+	rec.NackReason = nackReason
+}
+
+func (rec *Record) SaveData(data ndn.Data) {
+	rec.Name = data.Name
+	rec.FinalBlock = data.IsFinalBlock()
 }

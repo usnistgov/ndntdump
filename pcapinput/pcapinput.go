@@ -28,8 +28,10 @@ type Handle interface {
 }
 
 // Open creates a pcap input handle.
-//  ifname: network interface name.
-//  filename: input filename.
+//
+//	ifname: network interface name.
+//	filename: input filename.
+//	local: local MAC address.
 func Open(ifname, filename, local string) (handle Handle, e error) {
 	if (ifname == "") == (filename == "") {
 		return nil, errors.New("exactly one of ifname and filename+local should be specified")
