@@ -105,10 +105,12 @@ func (o *filesOutput) Close() error {
 
 func (o *filesOutput) Write(rec ndn6dump.Record) error {
 	errs := []error{}
-	if o.ndjsonEncoder != nil {
+	if o.ndjsonEncoder != nil && len(rec.DirType) > 0 {
 		errs = append(errs, o.ndjsonEncoder.Encode(rec))
 	}
-	if o.pcapngWriter != nil {
+	if o.pcapngWriter != nil && len(rec.Wire) > 0 {
+		rec.CaptureInfo.InterfaceIndex = 0
+		rec.CaptureInfo.AncillaryData = nil
 		errs = append(errs, o.pcapngWriter.WritePacket(rec.CaptureInfo, rec.Wire))
 	}
 	return multierr.Combine(errs...)
