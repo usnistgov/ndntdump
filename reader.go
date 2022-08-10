@@ -121,7 +121,16 @@ RETRY:
 }
 
 func (r *Reader) readWebSocket(ci gopacket.CaptureInfo, flow []byte) {
+	if len(r.tcp.Payload) == 0 {
+		return
+	}
+
 	frames, _ := websocket.ExtractBinaryFrames(r.tcp.Payload)
+	if len(frames) == 0 {
+		websocket.AnonymizeXForwardedFor(r.tcp.Payload)
+		return
+	}
+
 	r.unread = make([]Record, 0, len(frames))
 	for _, f := range frames {
 		if e := r.dlpTLV.DecodeLayers(f.Payload, &r.decoded); e != nil {
