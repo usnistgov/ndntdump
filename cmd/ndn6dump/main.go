@@ -31,31 +31,36 @@ var app = &cli.App{
 		&cli.StringFlag{
 			Name:    "ifname",
 			Aliases: []string{"i"},
-			Usage:   "network interface name",
+			Usage:   "network `interface` name",
 		},
 		&cli.StringFlag{
 			Name:    "input",
 			Aliases: []string{"r"},
-			Usage:   "input filename",
+			Usage:   "input `filename`",
 		},
 		&cli.StringFlag{
 			Name:  "local",
-			Usage: "local MAC address",
+			Usage: "local MAC `address`",
+		},
+		&cli.IntFlag{
+			Name:  "wss-port",
+			Usage: "WebSocket server `port`",
+			Value: 9696,
 		},
 		&cli.StringFlag{
 			Name:    "pcapng",
 			Aliases: []string{"w"},
-			Usage:   ".pcapng.gz output filename",
+			Usage:   ".pcapng.gz output `filename`",
 		},
 		&cli.StringFlag{
 			Name:    "json",
 			Aliases: []string{"L"},
-			Usage:   ".json.gz output filename",
+			Usage:   ".json.gz output `filename`",
 		},
 		&cli.StringSliceFlag{
 			Name:    "keep-ip",
 			Aliases: []string{"N"},
-			Usage:   "don't anonymize IP prefix",
+			Usage:   "don't anonymize IP `prefix`",
 		},
 	},
 	Action: func(c *cli.Context) (e error) {
@@ -65,7 +70,11 @@ var app = &cli.App{
 		if keepIPs, e = ndn6dump.ParseIPSet(c.StringSlice("keep-ip")); e != nil {
 			return cli.Exit(e, 1)
 		}
-		reader = ndn6dump.NewReader(input, input.LocalMAC(), ndn6dump.NewIPAnonymizer(keepIPs))
+		reader = ndn6dump.NewReader(input, ndn6dump.ReaderOptions{
+			Local:         input.LocalMAC(),
+			WebSocketPort: c.Int("wss-port"),
+			IPAnonymizer:  ndn6dump.NewIPAnonymizer(keepIPs),
+		})
 
 		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {
 			return cli.Exit(e, 1)

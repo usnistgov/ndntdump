@@ -13,8 +13,6 @@ import (
 	"github.com/yoursunny/ndn6dump/websocket"
 )
 
-const websocketServerPort layers.TCPPort = 9696
-
 var lotsOfZeros [65536]byte
 
 func zeroizeInterestPayload(interest *ndn.Interest) {
@@ -45,9 +43,10 @@ func saveFlowPorts[P ~uint8, N ~uint16](flow []byte, dir Direction, proto P, src
 
 // Reader reads NDN packets from ZeroCopyPacketDataSource.
 type Reader struct {
-	src   gopacket.ZeroCopyPacketDataSource
-	local net.HardwareAddr
-	ipa   *IPAnonymizer
+	src     gopacket.ZeroCopyPacketDataSource
+	local   net.HardwareAddr
+	wssPort layers.TCPPort
+	ipa     *IPAnonymizer
 
 	dlp     *gopacket.DecodingLayerParser
 	dlpTLV  *gopacket.DecodingLayerParser
@@ -90,7 +89,7 @@ RETRY:
 			switch {
 			case macaddr.Equal(r.eth.SrcMAC, r.eth.DstMAC):
 				if len(r.decoded) >= 3 && r.decoded[2] == layers.LayerTypeTCP {
-					switch websocketServerPort {
+					switch r.wssPort {
 					case r.tcp.SrcPort:
 						r.dir = DirectionTX
 					case r.tcp.DstPort:
@@ -237,11 +236,15 @@ func (Reader) readFragment(lpl3 ndn.LpL3, frag ndn.LpFragment, rec *Record) {
 }
 
 // NewReader creates Reader.
-func NewReader(src gopacket.ZeroCopyPacketDataSource, local net.HardwareAddr, ipa *IPAnonymizer) (r *Reader) {
+func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Reader) {
 	r = &Reader{
-		src:   src,
-		local: local,
-		ipa:   ipa,
+		src:     src,
+		local:   opts.Local,
+		wssPort: layers.TCPPort(opts.WebSocketPort),
+		ipa:     opts.IPAnonymizer,
+	}
+	if r.wssPort == 0 {
+		r.wssPort = 9696
 	}
 
 	r.dlp = gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, &r.eth, &r.ip4, &r.ip6, &r.udp, &r.tcp, &r.tlv, &r.ndn)
@@ -249,6 +252,13 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, local net.HardwareAddr, ip
 	r.dlpTLV = gopacket.NewDecodingLayerParser(ndnlayer.LayerTypeTLV, &r.tlv, &r.ndn)
 	r.dlpTLV.IgnoreUnsupported = true
 	return r
+}
+
+// ReaderOptions passes options to NewReader.
+type ReaderOptions struct {
+	Local         net.HardwareAddr
+	WebSocketPort int
+	IPAnonymizer  *IPAnonymizer
 }
 
 type incompleteTLV struct {
