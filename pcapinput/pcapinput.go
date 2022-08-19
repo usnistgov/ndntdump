@@ -107,6 +107,7 @@ func (hdl *netifHandle) Close() error {
 		return nil
 	}
 	hdl.mu.Lock()
+	defer hdl.mu.Unlock()
 	hdl.tp.Close()
 	return nil
 }

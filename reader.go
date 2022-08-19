@@ -13,6 +13,8 @@ import (
 	"github.com/yoursunny/ndn6dump/websocket"
 )
 
+const websocketServerPort layers.TCPPort = 9696
+
 var lotsOfZeros [65536]byte
 
 func zeroizeInterestPayload(interest *ndn.Interest) {
@@ -86,6 +88,17 @@ RETRY:
 		switch layerType {
 		case layers.LayerTypeEthernet:
 			switch {
+			case macaddr.Equal(r.eth.SrcMAC, r.eth.DstMAC):
+				if len(r.decoded) >= 3 && r.decoded[2] == layers.LayerTypeTCP {
+					switch websocketServerPort {
+					case r.tcp.SrcPort:
+						r.dir = DirectionTX
+					case r.tcp.DstPort:
+						r.dir = DirectionRX
+					default:
+						goto RETRY
+					}
+				}
 			case macaddr.Equal(r.local, r.eth.SrcMAC):
 				r.dir = DirectionTX
 			case macaddr.Equal(r.local, r.eth.DstMAC):
