@@ -10,17 +10,22 @@ import (
 
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/klauspost/compress/zstd"
 	"github.com/yoursunny/ndn6dump"
 	"go.uber.org/multierr"
 )
 
-func createFileCompressed(filename string, file **os.File, compress **gzip.Writer) (w io.Writer, e error) {
+func createFileCompressed(filename string, file **os.File, compress *io.WriteCloser) (w io.Writer, e error) {
 	if *file, e = os.Create(filename); e != nil {
 		return nil, e
 	}
 
-	if filepath.Ext(filename) == ".gz" {
+	switch filepath.Ext(filename) {
+	case ".gz":
 		*compress, _ = gzip.NewWriterLevel(*file, gzip.BestSpeed)
+		return *compress, nil
+	case ".zst":
+		*compress, _ = zstd.NewWriter(*file, zstd.WithEncoderLevel(zstd.SpeedDefault))
 		return *compress, nil
 	}
 
@@ -72,11 +77,11 @@ func OpenFiles(ifname, ndjsonFilename, pcapngFilename string) (ro RecordOutput, 
 
 type filesOutput struct {
 	ndjsonFile     *os.File
-	ndjsonCompress *gzip.Writer
+	ndjsonCompress io.WriteCloser
 	ndjsonEncoder  *json.Encoder
 
 	pcapngFile     *os.File
-	pcapngCompress *gzip.Writer
+	pcapngCompress io.WriteCloser
 	pcapngWriter   *pcapgo.NgWriter
 }
 

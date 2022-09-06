@@ -9,13 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/klauspost/compress/zstd"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
-	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 )
 
@@ -38,8 +39,8 @@ func Open(ifname, filename, local string) (handle Handle, e error) {
 	}
 
 	if ifname != "" {
-		hdl := &netifHandle{}
-		if e = hdl.open(ifname); e != nil {
+		hdl := &netifHandle{ifname: ifname}
+		if e = hdl.open(); e != nil {
 			return nil, e
 		}
 		return hdl, nil
@@ -64,9 +65,8 @@ type netifHandle struct {
 	closing atomic.Bool
 }
 
-func (hdl *netifHandle) open(ifname string) (e error) {
-	hdl.ifname = ifname
-	hdl.tp, e = afpacket.NewTPacket(afpacket.OptInterface(ifname), afpacket.OptPollTimeout(time.Second))
+func (hdl *netifHandle) open() (e error) {
+	hdl.tp, e = afpacket.NewTPacket(afpacket.OptInterface(hdl.ifname), afpacket.OptPollTimeout(time.Second))
 	return e
 }
 
@@ -115,7 +115,7 @@ func (hdl *netifHandle) Close() error {
 type fileHandle struct {
 	local      net.HardwareAddr
 	file       *os.File
-	decompress *gzip.Reader
+	decompress io.ReadCloser
 	reader     *pcapgo.Reader
 	ngr        *pcapgo.NgReader
 }
@@ -126,15 +126,25 @@ func (hdl *fileHandle) open(filename string) (e error) {
 	}
 	pcapStream := io.Reader(hdl.file)
 
-	if ext := filepath.Ext(filename); ext == ".gz" {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".gz":
 		if hdl.decompress, e = gzip.NewReader(hdl.file); e != nil {
 			return e
 		}
 		pcapStream = hdl.decompress
-		filename = filename[:len(filename)-len(ext)]
+	case ".zst":
+		if pcapStream, e = zstd.NewReader(hdl.file); e != nil {
+			return e
+		}
+		hdl.decompress = io.NopCloser(pcapStream)
 	}
 
-	ext := filepath.Ext(filename)
+	if hdl.decompress != nil {
+		filename = filename[:len(filename)-len(ext)]
+		ext = filepath.Ext(filename)
+	}
+
 	switch ext {
 	case ".pcap":
 		hdl.reader, e = pcapgo.NewReader(pcapStream)

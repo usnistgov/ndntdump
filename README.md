@@ -31,7 +31,7 @@ To capture WebSocket traffic, if the NDN forwarder and the HTTP server that perf
 To stop a live capture session, send SIGINT to the ndn6dump process.
 
 To read from a tcpdump trace file, set the filename in `--input` flag and set the local MAC address in `--local` flag.
-This mode can recognize `.pcap` `.pcap.gz` `.pcapng` `.pcapng.gz` file formats.
+This mode can recognize `.pcap` `.pcap.gz` `.pcap.zst` `.pcapng` `.pcapng.gz` `.pcapng.zst` file formats.
 The local MAC address is necessary for determining traffic direction.
 
 ## Output Files
@@ -48,8 +48,8 @@ Each line in this file is a JSON object that describes a NDN packet, either laye
 See [record.go](record.go) for the definition of property keys.
 All information in the records file should be available by re-parsing the packets file.
 
-Set output filenames in `--json` and `--pcapng` flags.
-If the filename ends with `.gz`, the output file is gzip compressed.
+Set output filenames in `--pcapng` and `--json` flags.
+If the filename ends with `.gz` or `.zst`, the output file is compressed.
 
 ## IP Anonymization
 
