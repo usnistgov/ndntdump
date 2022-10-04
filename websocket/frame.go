@@ -45,6 +45,9 @@ func (f *Frame) Decode(input []byte) (rest []byte, e error) {
 	}
 
 	if mask := input[1]&0x80 != 0; mask {
+		if len(input)-offset < 4 {
+			return nil, errTruncated
+		}
 		f.MaskingKey = input[offset : offset+4]
 		offset += 4
 	}

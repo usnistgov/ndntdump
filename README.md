@@ -11,7 +11,7 @@ It requires both Go compiler and C compiler.
 You can compile and install this program with:
 
 ```bash
-go install github.com/yoursunny/ndn6dump@latest
+go install github.com/yoursunny/ndn6dump/cmd/ndn6dump@latest
 ```
 
 This program is also available as a Docker container:
