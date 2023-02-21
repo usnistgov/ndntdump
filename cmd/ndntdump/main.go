@@ -60,6 +60,10 @@ var app = &cli.App{
 			Aliases: []string{"N"},
 			Usage:   "don't anonymize IP `prefix`",
 		},
+		&cli.BoolFlag{
+			Name:  "keep-mac",
+			Usage: "don't anonymize MAC addresses",
+		},
 	},
 	Action: func(c *cli.Context) (e error) {
 		if input, e = pcapinput.Open(c.String("ifname"), c.String("input"), c.String("local")); e != nil {
@@ -71,7 +75,7 @@ var app = &cli.App{
 		reader = ndntdump.NewReader(input, ndntdump.ReaderOptions{
 			Local:         input.LocalMAC(),
 			WebSocketPort: c.Int("wss-port"),
-			IPAnonymizer:  ndntdump.NewIPAnonymizer(keepIPs),
+			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
 		})
 
 		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {

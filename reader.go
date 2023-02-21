@@ -46,7 +46,7 @@ type Reader struct {
 	src     gopacket.ZeroCopyPacketDataSource
 	local   net.HardwareAddr
 	wssPort layers.TCPPort
-	ipa     *IPAnonymizer
+	anon    *Anonymizer
 
 	dlp     *gopacket.DecodingLayerParser
 	dlpTLV  *gopacket.DecodingLayerParser
@@ -105,14 +105,16 @@ RETRY:
 			default:
 				goto RETRY
 			}
+			r.anon.AnonymizeMAC(r.eth.SrcMAC)
+			r.anon.AnonymizeMAC(r.eth.DstMAC)
 			rec.Flow = saveFlowAddrs(nil, r.dir, r.eth.SrcMAC, r.eth.DstMAC)
 		case layers.LayerTypeIPv4:
-			r.ipa.Anonymize(r.ip4.SrcIP)
-			r.ipa.Anonymize(r.ip4.DstIP)
+			r.anon.AnonymizeIP(r.ip4.SrcIP)
+			r.anon.AnonymizeIP(r.ip4.DstIP)
 			rec.Flow = saveFlowAddrs(nil, r.dir, r.ip4.SrcIP, r.ip4.DstIP)
 		case layers.LayerTypeIPv6:
-			r.ipa.Anonymize(r.ip6.SrcIP)
-			r.ipa.Anonymize(r.ip6.DstIP)
+			r.anon.AnonymizeIP(r.ip6.SrcIP)
+			r.anon.AnonymizeIP(r.ip6.DstIP)
 			rec.Flow = saveFlowAddrs(nil, r.dir, r.ip6.SrcIP, r.ip6.DstIP)
 		case layers.LayerTypeUDP:
 			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolUDP, r.udp.SrcPort, r.udp.DstPort)
@@ -241,7 +243,7 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Re
 		src:     src,
 		local:   opts.Local,
 		wssPort: layers.TCPPort(opts.WebSocketPort),
-		ipa:     opts.IPAnonymizer,
+		anon:    opts.Anonymizer,
 	}
 	if r.wssPort == 0 {
 		r.wssPort = 9696
@@ -258,7 +260,7 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Re
 type ReaderOptions struct {
 	Local         net.HardwareAddr
 	WebSocketPort int
-	IPAnonymizer  *IPAnonymizer
+	Anonymizer    *Anonymizer
 }
 
 type incompleteTLV struct {

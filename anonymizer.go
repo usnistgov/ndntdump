@@ -2,41 +2,50 @@ package ndntdump
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"fmt"
 	"net"
 
 	"inet.af/netaddr"
 )
 
-// IPAnonymizer anonymizes IP addresses.
-// Initial 24 bits of IPv4 address and 48 bits of IPv6 address are kept; later bits are XOR'ed with a secret key.
-type IPAnonymizer struct {
-	keep   *netaddr.IPSet
-	secret [11]byte
+// Anonymizer anonymizes IP addresses and MAC addresses.
+// Initial 24 bits of IPv4 address, 48 bits of IPv6 address, and 48 bits of MAC address are kept.
+// Later bits are XOR'ed with a secret key.
+type Anonymizer struct {
+	keepIPs *netaddr.IPSet
+	keepMAC bool
+	secret  [14]byte
 }
 
-// Anonymize anonymizes one IP address.
-func (ipa *IPAnonymizer) Anonymize(ip net.IP) {
-	if nip, ok := netaddr.FromStdIP(ip); !ok || ipa.keep.Contains(nip) {
+// AnonymizeIP anonymizes an IP address.
+func (anon *Anonymizer) AnonymizeIP(ip net.IP) {
+	if nip, ok := netaddr.FromStdIP(ip); !ok || anon.keepIPs.Contains(nip) {
 		return
 	}
 
 	switch len(ip) {
 	case 4:
-		ip[3] ^= ipa.secret[10]
+		ip[3] ^= anon.secret[10]
 	case 16:
-		for i := 0; i < 10; i++ {
-			ip[6+i] ^= ipa.secret[i]
-		}
+		subtle.XORBytes(ip[6:], ip[6:], anon.secret[0:10])
 	}
 }
 
-// NewIPAnonymizer creates IPAnonymizer.
-func NewIPAnonymizer(keep *netaddr.IPSet) (ipa *IPAnonymizer) {
-	ipa = &IPAnonymizer{
-		keep: keep,
+// AnonymizeMAC anonymizes a MAC address.
+func (anon *Anonymizer) AnonymizeMAC(mac net.HardwareAddr) {
+	if !anon.keepMAC && len(mac) == 6 {
+		subtle.XORBytes(mac[3:], mac[3:], anon.secret[11:14])
 	}
-	rand.Read(ipa.secret[:])
+}
+
+// NewAnonymizer creates Anonymizer.
+func NewAnonymizer(keepIPs *netaddr.IPSet, keepMAC bool) (anon *Anonymizer) {
+	anon = &Anonymizer{
+		keepIPs: keepIPs,
+		keepMAC: keepMAC,
+	}
+	rand.Read(anon.secret[:])
 	return
 }
 

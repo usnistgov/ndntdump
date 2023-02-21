@@ -55,10 +55,10 @@ All information in the records file should be available by re-parsing the packet
 Set output filenames in `--pcapng` and `--json` flags.
 If the filename ends with `.gz` or `.zst`, the output file is compressed.
 
-## IP Anonymization
+## Address Anonymization
 
-To ensure privacy compliance, ndntdump performs IP anonymization before output files are written.
-IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits.
+To ensure privacy compliance, ndntdump anonymizes IP and MAC addresses before output files are written.
+IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits; MAC address keeps its leading 48 bits.
 Lower bits are XOR'ed with a random value, which is consistent in each run, so that the same original address yields the same anonymized address.
 
 For WebSocket traffic, HTTP request header `X-Forwarded-For` may contain full client address.
@@ -67,3 +67,6 @@ This address is anonymized by changing the lower bits to zeros.
 Set IP subnets that should not be anonymized in `--keep-ip` flag (repeatable).
 This should be set to subnets used by the network routers, so that it is easier to identify router-to-router traffic.
 A side effect is that it would expose non-router IP addresses within the same subnets.
+
+MAC address anonymization is enabled by default.
+It can be disabled with `--keep-mac` flag.
