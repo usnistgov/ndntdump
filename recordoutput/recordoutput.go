@@ -4,11 +4,11 @@ package recordoutput
 import (
 	"io"
 
-	"github.com/yoursunny/ndn6dump"
+	"github.com/usnistgov/ndntdump"
 )
 
 // RecordOutput represents an output stream.
 type RecordOutput interface {
 	io.Closer
-	Write(rec ndn6dump.Record) error
+	Write(rec ndntdump.Record) error
 }

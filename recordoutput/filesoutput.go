@@ -11,7 +11,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
-	"github.com/yoursunny/ndn6dump"
+	"github.com/usnistgov/ndntdump"
 	"go.uber.org/multierr"
 )
 
@@ -64,7 +64,7 @@ func OpenFiles(ifname, ndjsonFilename, pcapngFilename string) (ro RecordOutput, 
 			LinkType: layers.LinkTypeEthernet,
 		}, pcapgo.NgWriterOptions{
 			SectionInfo: pcapgo.NgSectionInfo{
-				Application: "ndn6dump",
+				Application: "ndntdump",
 			},
 		})
 		if e != nil {
@@ -108,7 +108,7 @@ func (o *filesOutput) Close() error {
 	return multierr.Combine(errs...)
 }
 
-func (o *filesOutput) Write(rec ndn6dump.Record) error {
+func (o *filesOutput) Write(rec ndntdump.Record) error {
 	errs := []error{}
 	if o.ndjsonEncoder != nil && len(rec.DirType) > 0 {
 		errs = append(errs, o.ndjsonEncoder.Encode(rec))

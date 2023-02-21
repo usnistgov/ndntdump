@@ -1,4 +1,4 @@
-module github.com/yoursunny/ndn6dump
+module github.com/usnistgov/ndntdump
 
 go 1.19
 

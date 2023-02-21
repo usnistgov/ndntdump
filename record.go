@@ -1,4 +1,4 @@
-package ndn6dump
+package ndntdump
 
 import (
 	"github.com/google/gopacket"

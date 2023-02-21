@@ -1,8 +1,12 @@
-# ndn6dump NDN Traffic Dumper
+# ndntdump NDN Traffic Dumper
 
-**ndn6dump** is a Go program that captures Named Data Networking network traffic.
+**ndntdump** is a Go program that captures Named Data Networking network traffic.
 It can perform online processing including IP anonymization for privacy protection and NDN packet name extraction.
-This program is designed for [yoursunny ndn6 network](https://yoursunny.com/p/ndn6/) but can be used elsewhere.
+
+[![NDNgo logo](https://cdn.jsdelivr.net/gh/usnistgov/ndn-dpdk@7ebd6ec90a34d5e52b6860f16317500bca0c1ae6/docs/NDNgo-logo.svg)](https://github.com/usnistgov/ndn-dpdk/tree/main/ndn)
+
+This software is developed at the [Smart Connected Systems Division](https://www.nist.gov/ctl/smart-connected-systems-division) of the [National Institute of Standards and Technology](https://www.nist.gov/).
+It is in beta stage and will continue to be updated.
 
 ## Installation
 
@@ -11,24 +15,24 @@ It requires both Go compiler and C compiler.
 You can compile and install this program with:
 
 ```bash
-go install github.com/yoursunny/ndn6dump/cmd/ndn6dump@latest
+go install github.com/usnistgov/ndntdump/cmd/ndntdump@latest
 ```
 
 This program is also available as a Docker container:
 
 ```bash
-docker build -t ndn6dump 'github.com/yoursunny/ndn6dump#main'
+docker build -t ndntdump 'github.com/usnistgov/ndntdump#main'
 ```
 
 ## Capture Modes
 
-ndn6dump can either live-capture from a network interface via AF\_PACKET socket, or read from a tcpdump trace file.
+ndntdump can either live-capture from a network interface via AF\_PACKET socket, or read from a tcpdump trace file.
 In both cases, it only recognizes Ethernet link mode.
 
 To live-capture, set the network interface name in `--ifname` flag.
-If the NDN forwarder is running in a Docker container, you must run ndn6dump in the same network namespace as the forwarder, and specify the network interface name inside that network namespace.
-To capture WebSocket traffic, if the NDN forwarder and the HTTP server that performs TLS termination are communicating over `lo` interface, you must run an additional ndn6dump instance to capture from this interface.
-To stop a live capture session, send SIGINT to the ndn6dump process.
+If the NDN forwarder is running in a Docker container, you must run ndntdump in the same network namespace as the forwarder, and specify the network interface name inside that network namespace.
+To capture WebSocket traffic, if the NDN forwarder and the HTTP server that performs TLS termination are communicating over `lo` interface, you must run an additional ndntdump instance to capture from this interface.
+To stop a live capture session, send SIGINT to the ndntdump process.
 
 To read from a tcpdump trace file, set the filename in `--input` flag and set the local MAC address in `--local` flag.
 This mode can recognize `.pcap` `.pcap.gz` `.pcap.zst` `.pcapng` `.pcapng.gz` `.pcapng.zst` file formats.
@@ -36,7 +40,7 @@ The local MAC address is necessary for determining traffic direction.
 
 ## Output Files
 
-ndn6dump emits two output files.
+ndntdump emits two output files.
 
 The **packets** file is an [pcapng](https://datatracker.ietf.org/doc/draft-tuexen-opsawg-pcapng/) file.
 It contains Ethernet packets that carry NDN traffic.
@@ -53,7 +57,7 @@ If the filename ends with `.gz` or `.zst`, the output file is compressed.
 
 ## IP Anonymization
 
-To ensure privacy compliance, ndn6dump performs IP anonymization before output files are written.
+To ensure privacy compliance, ndntdump performs IP anonymization before output files are written.
 IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits.
 Lower bits are XOR'ed with a random value, which is consistent in each run, so that the same original address yields the same anonymized address.
 

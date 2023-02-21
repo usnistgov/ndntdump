@@ -1,4 +1,4 @@
-package ndn6dump
+package ndntdump
 
 import (
 	"net"
@@ -10,7 +10,7 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/ndnlayer"
 	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
-	"github.com/yoursunny/ndn6dump/websocket"
+	"github.com/usnistgov/ndntdump/websocket"
 )
 
 var lotsOfZeros [65536]byte

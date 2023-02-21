@@ -1,4 +1,4 @@
-// Command ndn6dump captures NDN traffic from a network interface.
+// Command ndntdump captures NDN traffic from a network interface.
 package main
 
 import (
@@ -11,21 +11,21 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
-	"github.com/yoursunny/ndn6dump"
-	"github.com/yoursunny/ndn6dump/pcapinput"
-	"github.com/yoursunny/ndn6dump/recordoutput"
+	"github.com/usnistgov/ndntdump"
+	"github.com/usnistgov/ndntdump/pcapinput"
+	"github.com/usnistgov/ndntdump/recordoutput"
 	"inet.af/netaddr"
 )
 
 var (
 	keepIPs *netaddr.IPSet
 	input   pcapinput.Handle
-	reader  *ndn6dump.Reader
+	reader  *ndntdump.Reader
 	output  recordoutput.RecordOutput
 )
 
 var app = &cli.App{
-	Name:  "ndn6dump",
+	Name:  "ndntdump",
 	Usage: "capture, anonymize, and analyze NDN traffic",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -67,13 +67,13 @@ var app = &cli.App{
 		if input, e = pcapinput.Open(c.String("ifname"), c.String("input"), c.String("local")); e != nil {
 			return cli.Exit(e, 1)
 		}
-		if keepIPs, e = ndn6dump.ParseIPSet(c.StringSlice("keep-ip")); e != nil {
+		if keepIPs, e = ndntdump.ParseIPSet(c.StringSlice("keep-ip")); e != nil {
 			return cli.Exit(e, 1)
 		}
-		reader = ndn6dump.NewReader(input, ndn6dump.ReaderOptions{
+		reader = ndntdump.NewReader(input, ndntdump.ReaderOptions{
 			Local:         input.LocalMAC(),
 			WebSocketPort: c.Int("wss-port"),
-			IPAnonymizer:  ndn6dump.NewIPAnonymizer(keepIPs),
+			IPAnonymizer:  ndntdump.NewIPAnonymizer(keepIPs),
 		})
 
 		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {
