@@ -4,11 +4,9 @@ package main
 import (
 	"errors"
 	"io"
-	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/urfave/cli/v2"
 	"github.com/usnistgov/ndntdump"
@@ -115,6 +113,5 @@ var app = &cli.App{
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	app.Run(os.Args)
 }

@@ -1,4 +1,4 @@
-FROM golang:1.19-bullseye AS build
+FROM golang:1.20-bullseye AS build
 WORKDIR /app
 COPY . .
 RUN env GOBIN=/build go install ./cmd/ndntdump

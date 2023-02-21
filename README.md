@@ -42,12 +42,12 @@ The local MAC address is necessary for determining traffic direction.
 
 ndntdump emits two output files.
 
-The **packets** file is an [pcapng](https://datatracker.ietf.org/doc/draft-tuexen-opsawg-pcapng/) file.
+The **packets** file is a [pcapng](https://datatracker.ietf.org/doc/draft-tuexen-opsawg-pcapng/) file.
 It contains Ethernet packets that carry NDN traffic.
 IP anonymization has been performed on these packets.
 When feasible, NDN packet payload, including Interest ApplicationParameters and Data Content, is zeroized, so that the output can be compressed effectively.
 
-The **records** file is an [Newline delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) file.
+The **records** file is a [Newline delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) file.
 Each line in this file is a JSON object that describes a NDN packet, either layer 2 or layer 3.
 See [record.go](record.go) for the definition of property keys.
 All information in the records file should be available by re-parsing the packets file.

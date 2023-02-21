@@ -12,7 +12,6 @@ import (
 	"github.com/google/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/usnistgov/ndntdump"
-	"go.uber.org/multierr"
 )
 
 func createFileCompressed(filename string, file **os.File, compress *io.WriteCloser) (w io.Writer, e error) {
@@ -105,7 +104,7 @@ func (o *filesOutput) Close() error {
 		errs = append(errs, o.pcapngFile.Close())
 	}
 
-	return multierr.Combine(errs...)
+	return errors.Join(errs...)
 }
 
 func (o *filesOutput) Write(rec ndntdump.Record) error {
@@ -118,5 +117,5 @@ func (o *filesOutput) Write(rec ndntdump.Record) error {
 		rec.CaptureInfo.AncillaryData = nil
 		errs = append(errs, o.pcapngWriter.WritePacket(rec.CaptureInfo, rec.Wire))
 	}
-	return multierr.Combine(errs...)
+	return errors.Join(errs...)
 }

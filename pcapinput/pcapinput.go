@@ -17,7 +17,6 @@ import (
 	"github.com/google/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
-	"go.uber.org/multierr"
 )
 
 // Handle represents a pcap input handle.
@@ -184,5 +183,5 @@ func (hdl *fileHandle) Close() error {
 	if hdl.file != nil {
 		errs = append(errs, hdl.file.Close())
 	}
-	return multierr.Combine(errs...)
+	return errors.Join(errs...)
 }
