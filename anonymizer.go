@@ -10,8 +10,8 @@ import (
 )
 
 // Anonymizer anonymizes IP addresses and MAC addresses.
-// Initial 24 bits of IPv4 address, 48 bits of IPv6 address, and 48 bits of MAC address are kept.
-// Later bits are XOR'ed with a secret key.
+// IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits; MAC address keeps its leading 24 bits.
+// Lower bits are XOR'ed with a random value.
 type Anonymizer struct {
 	keepIPs *netaddr.IPSet
 	keepMAC bool
