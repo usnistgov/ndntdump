@@ -5,22 +5,23 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net"
+	"net/netip"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 )
 
 // Anonymizer anonymizes IP addresses and MAC addresses.
 // IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits; MAC address keeps its leading 24 bits.
 // Lower bits are XOR'ed with a random value.
 type Anonymizer struct {
-	keepIPs *netaddr.IPSet
+	keepIPs *netipx.IPSet
 	keepMAC bool
 	secret  [14]byte
 }
 
 // AnonymizeIP anonymizes an IP address.
 func (anon *Anonymizer) AnonymizeIP(ip net.IP) {
-	if nip, ok := netaddr.FromStdIP(ip); !ok || anon.keepIPs.Contains(nip) {
+	if nip, ok := netip.AddrFromSlice(ip); !ok || anon.keepIPs.Contains(nip) {
 		return
 	}
 
@@ -40,7 +41,7 @@ func (anon *Anonymizer) AnonymizeMAC(mac net.HardwareAddr) {
 }
 
 // NewAnonymizer creates Anonymizer.
-func NewAnonymizer(keepIPs *netaddr.IPSet, keepMAC bool) (anon *Anonymizer) {
+func NewAnonymizer(keepIPs *netipx.IPSet, keepMAC bool) (anon *Anonymizer) {
 	anon = &Anonymizer{
 		keepIPs: keepIPs,
 		keepMAC: keepMAC,
@@ -52,20 +53,20 @@ func NewAnonymizer(keepIPs *netaddr.IPSet, keepMAC bool) (anon *Anonymizer) {
 // ParseIPSet parses CIDR strings into IPSet.
 // IPv4 prefixes are shortened to /24.
 // IPv6 prefixes are shortened to /48.
-func ParseIPSet(input []string) (*netaddr.IPSet, error) {
-	var b netaddr.IPSetBuilder
+func ParseIPSet(input []string) (*netipx.IPSet, error) {
+	var b netipx.IPSetBuilder
 	for i, prefix := range input {
-		p, e := netaddr.ParseIPPrefix(prefix)
+		p, e := netip.ParsePrefix(prefix)
 		if e != nil {
 			return nil, fmt.Errorf("%d %w", i, e)
 		}
 
-		ip, bits := p.IP(), p.Bits()
+		ip, bits := p.Addr(), p.Bits()
 		switch {
 		case ip.Is4() && bits > 24:
-			p = netaddr.IPPrefixFrom(ip, 24)
+			p = netip.PrefixFrom(ip, 24)
 		case ip.Is6() && bits > 48:
-			p = netaddr.IPPrefixFrom(ip, 48)
+			p = netip.PrefixFrom(ip, 48)
 		}
 
 		b.AddPrefix(p)

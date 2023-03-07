@@ -12,11 +12,11 @@ import (
 	"github.com/usnistgov/ndntdump"
 	"github.com/usnistgov/ndntdump/pcapinput"
 	"github.com/usnistgov/ndntdump/recordoutput"
-	"inet.af/netaddr"
+	"go4.org/netipx"
 )
 
 var (
-	keepIPs *netaddr.IPSet
+	keepIPs *netipx.IPSet
 	input   pcapinput.Handle
 	reader  *ndntdump.Reader
 	output  recordoutput.RecordOutput

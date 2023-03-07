@@ -4,10 +4,10 @@ go 1.20
 
 require (
 	github.com/google/gopacket v1.1.19
-	github.com/klauspost/compress v1.15.15
-	github.com/urfave/cli/v2 v2.24.4
-	github.com/usnistgov/ndn-dpdk v0.0.0-20230221135740-31a17826c916
-	inet.af/netaddr v0.0.0-20220811202034-502d2d690317
+	github.com/klauspost/compress v1.16.0
+	github.com/urfave/cli/v2 v2.25.0
+	github.com/usnistgov/ndn-dpdk v0.0.0-20230306161007-c60b5d6beb23
+	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 )
 
 require (
@@ -16,9 +16,7 @@ require (
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zyedidia/generic v1.2.1 // indirect
-	go4.org/intern v0.0.0-20230205224052-192e9f60865c // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230221090011-e4bae7ad2296 // indirect
-	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/exp v0.0.0-20230304125523-9ff063c70017 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 )

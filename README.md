@@ -1,7 +1,7 @@
 # ndntdump NDN Traffic Dumper
 
 **ndntdump** is a Go program that captures Named Data Networking network traffic.
-It can perform online processing including IP anonymization for privacy protection and NDN packet name extraction.
+It can perform online processing including address anonymization for privacy protection and NDN packet name extraction.
 
 [![NDNgo logo](https://cdn.jsdelivr.net/gh/usnistgov/ndn-dpdk@7ebd6ec90a34d5e52b6860f16317500bca0c1ae6/docs/NDNgo-logo.svg)](https://github.com/usnistgov/ndn-dpdk/tree/main/ndn)
 
