@@ -31,18 +31,21 @@ In both cases, it only recognizes Ethernet link mode.
 
 To live-capture, set the network interface name in `--ifname` flag.
 If the NDN forwarder is running in a Docker container, you must run ndntdump in the same network namespace as the forwarder, and specify the network interface name inside that network namespace.
-To capture WebSocket traffic, if the NDN forwarder and the HTTP server that performs TLS termination are communicating over `lo` interface, you must run an additional ndntdump instance to capture from this interface.
+It's possible to capture from all network interfaces with `--ifname '*'` flag; however, the network interface information isn't carried over to the output files.
 To stop a live capture session, send SIGINT to the ndntdump process.
 
 To read from a tcpdump trace file, set the filename in `--input` flag and set the local MAC address in `--local` flag.
 This mode can recognize `.pcap` `.pcap.gz` `.pcap.zst` `.pcapng` `.pcapng.gz` `.pcapng.zst` file formats.
 The local MAC address is necessary for determining traffic direction.
 
+TCP flows with either source or destination port matching `--wss-port` flag (defaults to 9696) are analyzed for NDN over WebSocket traffic.
+In live-capture mode, if the NDN forwarder and the HTTP server that performs TLS termination are communicating over `lo` interface, you must capture from this network interface by either running an additional ndntdump instance or using the `--ifname '*'` flag.
+
 ## Output Files
 
 ndntdump emits two output files.
 
-The **packets** file is a [pcapng](https://datatracker.ietf.org/doc/draft-tuexen-opsawg-pcapng/) file.
+The **packets** file is a [pcapng](https://datatracker.ietf.org/doc/draft-ietf-opsawg-pcapng/) file.
 It contains Ethernet packets that carry NDN traffic.
 IP anonymization has been performed on these packets.
 When feasible, NDN packet payload, including Interest ApplicationParameters and Data Content, is zeroized, so that the output can be compressed effectively.

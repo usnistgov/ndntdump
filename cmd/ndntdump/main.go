@@ -73,7 +73,7 @@ var app = &cli.App{
 			return cli.Exit(e, 1)
 		}
 		reader = ndntdump.NewReader(input, ndntdump.ReaderOptions{
-			Local:         input.LocalMAC(),
+			IsLocal:       input.IsLocal,
 			WebSocketPort: c.Int("wss-port"),
 			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
 		})

@@ -26,25 +26,27 @@ func zeroizeDataPayload(data *ndn.Data) {
 }
 
 func saveFlowAddrs[A ~[]byte](flow []byte, dir Direction, src, dst A) []byte {
+	local, remote := src, dst
 	if dir == DirectionRX {
-		src, dst = dst, src
+		local, remote = dst, src
 	}
-	flow = append(flow, src...)
-	flow = append(flow, dst...)
+	flow = append(flow, local...)
+	flow = append(flow, remote...)
 	return flow
 }
 
 func saveFlowPorts[P ~uint8, N ~uint16](flow []byte, dir Direction, proto P, src, dst N) []byte {
+	local, remote := src, dst
 	if dir == DirectionRX {
-		src, dst = dst, src
+		local, remote = dst, src
 	}
-	return append(flow, uint8(proto), uint8(src>>8), uint8(src), uint8(dst>>8), uint8(dst))
+	return append(flow, uint8(proto), uint8(local>>8), uint8(local), uint8(remote>>8), uint8(remote))
 }
 
 // Reader reads NDN packets from ZeroCopyPacketDataSource.
 type Reader struct {
 	src     gopacket.ZeroCopyPacketDataSource
-	local   net.HardwareAddr
+	isLocal func(net.HardwareAddr) bool
 	wssPort layers.TCPPort
 	anon    *Anonymizer
 
@@ -69,7 +71,9 @@ type Reader struct {
 func (r *Reader) Read() (rec Record, e error) {
 	if len(r.unread) > 0 {
 		rec = r.unread[0]
-		r.unread = r.unread[1:]
+		if r.unread = r.unread[1:]; len(r.unread) == 0 {
+			r.unread = nil
+		}
 		return
 	}
 
@@ -98,27 +102,30 @@ RETRY:
 						goto RETRY
 					}
 				}
-			case macaddr.Equal(r.local, r.eth.SrcMAC):
+			case r.isLocal(r.eth.SrcMAC):
 				r.dir = DirectionTX
-			case macaddr.Equal(r.local, r.eth.DstMAC):
+			case r.isLocal(r.eth.DstMAC):
 				r.dir = DirectionRX
 			default:
 				goto RETRY
 			}
 			r.anon.AnonymizeMAC(r.eth.SrcMAC)
 			r.anon.AnonymizeMAC(r.eth.DstMAC)
-			rec.Flow = saveFlowAddrs(nil, r.dir, r.eth.SrcMAC, r.eth.DstMAC)
+			rec.Flow = saveFlowAddrs(make([]byte, 0, 12), r.dir, r.eth.SrcMAC, r.eth.DstMAC)
 		case layers.LayerTypeIPv4:
 			r.anon.AnonymizeIP(r.ip4.SrcIP)
 			r.anon.AnonymizeIP(r.ip4.DstIP)
-			rec.Flow = saveFlowAddrs(nil, r.dir, r.ip4.SrcIP, r.ip4.DstIP)
+			rec.Flow = saveFlowAddrs(make([]byte, 0, 13), r.dir, r.ip4.SrcIP, r.ip4.DstIP)
 		case layers.LayerTypeIPv6:
 			r.anon.AnonymizeIP(r.ip6.SrcIP)
 			r.anon.AnonymizeIP(r.ip6.DstIP)
-			rec.Flow = saveFlowAddrs(nil, r.dir, r.ip6.SrcIP, r.ip6.DstIP)
+			rec.Flow = saveFlowAddrs(make([]byte, 0, 37), r.dir, r.ip6.SrcIP, r.ip6.DstIP)
 		case layers.LayerTypeUDP:
 			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolUDP, r.udp.SrcPort, r.udp.DstPort)
 		case layers.LayerTypeTCP:
+			if r.tcp.SrcPort != r.wssPort && r.tcp.DstPort != r.wssPort {
+				goto RETRY
+			}
 			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolTCP, r.tcp.SrcPort, r.tcp.DstPort)
 			r.readWebSocket(rec.CaptureInfo, rec.Flow)
 			return rec, nil
@@ -241,7 +248,7 @@ func (Reader) readFragment(lpl3 ndn.LpL3, frag ndn.LpFragment, rec *Record) {
 func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Reader) {
 	r = &Reader{
 		src:     src,
-		local:   opts.Local,
+		isLocal: opts.IsLocal,
 		wssPort: layers.TCPPort(opts.WebSocketPort),
 		anon:    opts.Anonymizer,
 	}
@@ -258,7 +265,7 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Re
 
 // ReaderOptions passes options to NewReader.
 type ReaderOptions struct {
-	Local         net.HardwareAddr
+	IsLocal       func(net.HardwareAddr) bool
 	WebSocketPort int
 	Anonymizer    *Anonymizer
 }

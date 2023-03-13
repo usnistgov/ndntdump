@@ -17,6 +17,7 @@ import (
 	"github.com/google/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
+	"github.com/zyedidia/generic/mapset"
 )
 
 // Handle represents a pcap input handle.
@@ -24,7 +25,7 @@ type Handle interface {
 	gopacket.ZeroCopyPacketDataSource
 	io.Closer
 	Name() string
-	LocalMAC() net.HardwareAddr
+	IsLocal(mac net.HardwareAddr) bool
 }
 
 // Open creates a pcap input handle.
@@ -59,13 +60,36 @@ func Open(ifname, filename, local string) (handle Handle, e error) {
 
 type netifHandle struct {
 	ifname  string
+	locals  mapset.Set[[6]byte]
 	tp      *afpacket.TPacket
 	mu      sync.RWMutex
 	closing atomic.Bool
 }
 
 func (hdl *netifHandle) open() (e error) {
-	hdl.tp, e = afpacket.NewTPacket(afpacket.OptInterface(hdl.ifname), afpacket.OptPollTimeout(time.Second))
+	hdl.locals = mapset.New[[6]byte]()
+
+	opts := []any{afpacket.OptPollTimeout(time.Second)}
+	if hdl.ifname == "*" {
+		netifs, e := net.Interfaces()
+		if e != nil {
+			return e
+		}
+		for _, netif := range netifs {
+			if macaddr.IsUnicast(netif.HardwareAddr) {
+				hdl.locals.Put([6]byte(netif.HardwareAddr))
+			}
+		}
+	} else {
+		netif, e := net.InterfaceByName(hdl.ifname)
+		if e != nil {
+			return e
+		}
+		hdl.locals.Put([6]byte(netif.HardwareAddr))
+		opts = append(opts, afpacket.OptInterface(netif.Name))
+	}
+
+	hdl.tp, e = afpacket.NewTPacket(opts...)
 	return e
 }
 
@@ -73,11 +97,8 @@ func (hdl *netifHandle) Name() string {
 	return hdl.ifname
 }
 
-func (hdl *netifHandle) LocalMAC() net.HardwareAddr {
-	if netif, _ := net.InterfaceByName(hdl.ifname); netif != nil {
-		return netif.HardwareAddr
-	}
-	return nil
+func (hdl *netifHandle) IsLocal(mac net.HardwareAddr) bool {
+	return hdl.locals.Has([6]byte(mac))
 }
 
 func (hdl *netifHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {
@@ -164,8 +185,8 @@ func (hdl *fileHandle) Name() string {
 	return hdl.file.Name()
 }
 
-func (hdl *fileHandle) LocalMAC() net.HardwareAddr {
-	return hdl.local
+func (hdl *fileHandle) IsLocal(mac net.HardwareAddr) bool {
+	return macaddr.Equal(hdl.local, mac)
 }
 
 func (hdl *fileHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {
