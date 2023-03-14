@@ -1,3 +1,4 @@
+// Package ndntdump processes captured NDN traffic.
 package ndntdump
 
 import (

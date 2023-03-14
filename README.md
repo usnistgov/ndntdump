@@ -58,6 +58,10 @@ All information in the records file should be available by re-parsing the packet
 Set output filenames in `--pcapng` and `--json` flags.
 If the filename ends with `.gz` or `.zst`, the output file is compressed.
 
+To rotate output files, send SIGHUP to the ndntdump process.
+Upon receiving this signal, ndntdump closes and reopens each output file.
+This may be used with [logrotate](https://man7.org/linux/man-pages/man8/logrotate.8.html)'s `postrotate` option.
+
 ## Address Anonymization
 
 To ensure privacy compliance, ndntdump anonymizes IP and MAC addresses before output files are written.

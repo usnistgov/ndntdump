@@ -1,6 +1,8 @@
 package ndntdump
 
 import (
+	"io"
+
 	"github.com/google/gopacket"
 	"github.com/usnistgov/ndn-dpdk/ndn"
 )
@@ -65,4 +67,10 @@ func (rec *Record) SaveData(data ndn.Data) {
 	rec.ContentType = int(data.ContentType)
 	rec.Freshness = int(data.Freshness.Milliseconds())
 	rec.FinalBlock = data.IsFinalBlock()
+}
+
+// RecordOutput represents an output stream.
+type RecordOutput interface {
+	io.Closer
+	Write(rec Record) error
 }

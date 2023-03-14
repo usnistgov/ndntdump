@@ -10,8 +10,8 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"github.com/usnistgov/ndntdump"
+	"github.com/usnistgov/ndntdump/fileoutput"
 	"github.com/usnistgov/ndntdump/pcapinput"
-	"github.com/usnistgov/ndntdump/recordoutput"
 	"go4.org/netipx"
 )
 
@@ -19,7 +19,7 @@ var (
 	keepIPs *netipx.IPSet
 	input   pcapinput.Handle
 	reader  *ndntdump.Reader
-	output  recordoutput.RecordOutput
+	output  ndntdump.RecordOutput
 )
 
 var app = &cli.App{
@@ -78,7 +78,7 @@ var app = &cli.App{
 			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
 		})
 
-		if output, e = recordoutput.OpenFiles(input.Name(), c.String("json"), c.String("pcapng")); e != nil {
+		if output, e = fileoutput.Open(c.String("json"), c.String("pcapng")); e != nil {
 			return cli.Exit(e, 1)
 		}
 
