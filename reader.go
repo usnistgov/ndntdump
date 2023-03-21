@@ -48,6 +48,7 @@ func saveFlowPorts[P ~uint8, N ~uint16](flow []byte, dir Direction, proto P, src
 type Reader struct {
 	src     gopacket.ZeroCopyPacketDataSource
 	isLocal func(net.HardwareAddr) bool
+	tcpPort layers.TCPPort
 	wssPort layers.TCPPort
 	anon    *Anonymizer
 
@@ -68,13 +69,11 @@ type Reader struct {
 
 // Read reads an NDN packet.
 //
-// []byte fields within returned structure are valid until next call to this function.
+// []byte fields within returned Record are valid until next call to this function.
 func (r *Reader) Read() (rec Record, e error) {
 	if len(r.unread) > 0 {
 		rec = r.unread[0]
-		if r.unread = r.unread[1:]; len(r.unread) == 0 {
-			r.unread = nil
-		}
+		r.unread = r.unread[1:]
 		return
 	}
 
@@ -94,10 +93,10 @@ RETRY:
 			switch {
 			case macaddr.Equal(r.eth.SrcMAC, r.eth.DstMAC):
 				if len(r.decoded) >= 3 && r.decoded[2] == layers.LayerTypeTCP {
-					switch r.wssPort {
-					case r.tcp.SrcPort:
+					switch {
+					case r.tcp.SrcPort == r.tcpPort, r.tcp.SrcPort == r.wssPort:
 						r.dir = DirectionTX
-					case r.tcp.DstPort:
+					case r.tcp.DstPort == r.tcpPort, r.tcp.DstPort == r.wssPort:
 						r.dir = DirectionRX
 					default:
 						goto RETRY
@@ -124,11 +123,14 @@ RETRY:
 		case layers.LayerTypeUDP:
 			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolUDP, r.udp.SrcPort, r.udp.DstPort)
 		case layers.LayerTypeTCP:
-			if r.tcp.SrcPort != r.wssPort && r.tcp.DstPort != r.wssPort {
+			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolTCP, r.tcp.SrcPort, r.tcp.DstPort)
+			switch {
+			case r.tcp.SrcPort == r.wssPort, r.tcp.DstPort == r.wssPort:
+				r.readWebSocket(rec.CaptureInfo, rec.Flow)
+			case r.tcp.SrcPort == r.tcpPort, r.tcp.DstPort == r.tcpPort:
+			default:
 				goto RETRY
 			}
-			rec.Flow = saveFlowPorts(rec.Flow, r.dir, layers.IPProtocolTCP, r.tcp.SrcPort, r.tcp.DstPort)
-			r.readWebSocket(rec.CaptureInfo, rec.Flow)
 			return rec, nil
 		case ndnlayer.LayerTypeTLV:
 			rec.Size2 = len(r.tlv.LayerContents())
@@ -250,6 +252,7 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Re
 	r = &Reader{
 		src:     src,
 		isLocal: opts.IsLocal,
+		tcpPort: layers.TCPPort(opts.TCPPort),
 		wssPort: layers.TCPPort(opts.WebSocketPort),
 		anon:    opts.Anonymizer,
 	}
@@ -267,6 +270,7 @@ func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Re
 // ReaderOptions passes options to NewReader.
 type ReaderOptions struct {
 	IsLocal       func(net.HardwareAddr) bool
+	TCPPort       int
 	WebSocketPort int
 	Anonymizer    *Anonymizer
 }

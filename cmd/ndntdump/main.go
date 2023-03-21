@@ -41,6 +41,11 @@ var app = &cli.App{
 			Usage: "local MAC `address`",
 		},
 		&cli.IntFlag{
+			Name:  "tcp-port",
+			Usage: "NDN over TCP `port`",
+			Value: 6363,
+		},
+		&cli.IntFlag{
 			Name:  "wss-port",
 			Usage: "WebSocket server `port`",
 			Value: 9696,
@@ -74,6 +79,7 @@ var app = &cli.App{
 		}
 		reader = ndntdump.NewReader(input, ndntdump.ReaderOptions{
 			IsLocal:       input.IsLocal,
+			TCPPort:       c.Int("tcp-port"),
 			WebSocketPort: c.Int("wss-port"),
 			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
 		})

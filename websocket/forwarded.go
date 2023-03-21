@@ -11,14 +11,14 @@ var lotsOfSpaces = bytes.Repeat([]byte(" "), 256)
 
 // AnonymizeXForwardedFor recognizes an UPGRADE request and anonymizes IP address enclosed in X-Forwarded-For header.
 // Initial 24 bits of IPv4 address and 48 bits of IPv6 address are kept; later bits are set to zeros.
-func AnonymizeXForwardedFor(input []byte) {
-	if !bytes.HasPrefix(input, []byte("GET ")) || !bytes.HasSuffix(input, []byte("\r\n\r\n")) {
+func AnonymizeXForwardedFor(p []byte) {
+	if !bytes.HasPrefix(p, []byte("GET ")) || !bytes.HasSuffix(p, []byte("\r\n\r\n")) {
 		return
 	}
 
-	matches := reXForwardedFor.FindAllSubmatchIndex(input, -1)
+	matches := reXForwardedFor.FindAllSubmatchIndex(p, -1)
 	for _, match := range matches {
-		room := input[match[2]:match[3]]
+		room := p[match[2]:match[3]]
 		ip, e := netip.ParseAddr(string(bytes.TrimSpace(room)))
 		if e != nil {
 			continue

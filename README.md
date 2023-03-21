@@ -41,6 +41,10 @@ The local MAC address is necessary for determining traffic direction.
 TCP flows with either source or destination port matching `--wss-port` flag (defaults to 9696) are analyzed for NDN over WebSocket traffic.
 In live-capture mode, if the NDN forwarder and the HTTP server that performs TLS termination are communicating over `lo` interface, you must capture from this network interface by either running an additional ndntdump instance or using the `--ifname '*'` flag.
 
+TCP flows with either source or destination port matching `--tcp-port` flag (defaults to 6363) are considered as NDN over TCP traffic.
+These packets are anonymized and included in the output packets file.
+However, this program cannot analyze NDN over TCP traffic, so that packet names and other properties do not appear in the output records file.
+
 ## Output Files
 
 ndntdump emits two output files.
