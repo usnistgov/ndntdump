@@ -46,11 +46,12 @@ func saveFlowPorts[P ~uint8, N ~uint16](flow []byte, dir Direction, proto P, src
 
 // Reader reads NDN packets from ZeroCopyPacketDataSource.
 type Reader struct {
-	src     gopacket.ZeroCopyPacketDataSource
-	isLocal func(net.HardwareAddr) bool
-	tcpPort layers.TCPPort
-	wssPort layers.TCPPort
-	anon    *Anonymizer
+	src            gopacket.ZeroCopyPacketDataSource
+	isLocal        func(net.HardwareAddr) bool
+	tcpPort        layers.TCPPort
+	wssPort        layers.TCPPort
+	anon           *Anonymizer
+	zeroizePayload bool
 
 	dlp     *gopacket.DecodingLayerParser
 	dlpTLV  *gopacket.DecodingLayerParser
@@ -186,15 +187,21 @@ func (r *Reader) readPacket(rec *Record) bool {
 	case pkt.Interest != nil:
 		pktType = PktTypeInterest
 		rec.SaveInterest(*pkt.Interest, an.NackNone)
-		zeroizeInterestPayload(pkt.Interest)
+		if r.zeroizePayload {
+			zeroizeInterestPayload(pkt.Interest)
+		}
 	case pkt.Data != nil:
 		pktType = PktTypeData
 		rec.SaveData(*pkt.Data)
-		zeroizeDataPayload(pkt.Data)
+		if r.zeroizePayload {
+			zeroizeDataPayload(pkt.Data)
+		}
 	case pkt.Nack != nil:
 		pktType = PktTypeNack
 		rec.SaveInterest(pkt.Nack.Interest, pkt.Nack.Reason)
-		zeroizeInterestPayload(&pkt.Nack.Interest)
+		if r.zeroizePayload {
+			zeroizeInterestPayload(&pkt.Nack.Interest)
+		}
 	default:
 		return false
 	}
@@ -250,11 +257,12 @@ func (Reader) readFragment(lpl3 ndn.LpL3, frag ndn.LpFragment, rec *Record) {
 // NewReader creates Reader.
 func NewReader(src gopacket.ZeroCopyPacketDataSource, opts ReaderOptions) (r *Reader) {
 	r = &Reader{
-		src:     src,
-		isLocal: opts.IsLocal,
-		tcpPort: layers.TCPPort(opts.TCPPort),
-		wssPort: layers.TCPPort(opts.WebSocketPort),
-		anon:    opts.Anonymizer,
+		src:            src,
+		isLocal:        opts.IsLocal,
+		tcpPort:        layers.TCPPort(opts.TCPPort),
+		wssPort:        layers.TCPPort(opts.WebSocketPort),
+		anon:           opts.Anonymizer,
+		zeroizePayload: !opts.KeepPayload,
 	}
 	if r.wssPort == 0 {
 		r.wssPort = 9696
@@ -273,6 +281,7 @@ type ReaderOptions struct {
 	TCPPort       int
 	WebSocketPort int
 	Anonymizer    *Anonymizer
+	KeepPayload   bool
 }
 
 type incompleteTLV struct {

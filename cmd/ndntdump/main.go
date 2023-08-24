@@ -69,6 +69,10 @@ var app = &cli.App{
 			Name:  "keep-mac",
 			Usage: "don't anonymize MAC addresses",
 		},
+		&cli.BoolFlag{
+			Name:  "keep-payload",
+			Usage: "don't zeroize payload",
+		},
 	},
 	Action: func(c *cli.Context) (e error) {
 		if input, e = pcapinput.Open(c.String("ifname"), c.String("input"), c.String("local")); e != nil {
@@ -82,6 +86,7 @@ var app = &cli.App{
 			TCPPort:       c.Int("tcp-port"),
 			WebSocketPort: c.Int("wss-port"),
 			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
+			KeepPayload:   c.Bool("keep-payload"),
 		})
 
 		if output, e = fileoutput.Open(c.String("json"), c.String("pcapng")); e != nil {

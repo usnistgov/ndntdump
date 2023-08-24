@@ -51,8 +51,9 @@ ndntdump emits two output files.
 
 The **packets** file is a [pcapng](https://datatracker.ietf.org/doc/draft-ietf-opsawg-pcapng/) file.
 It contains Ethernet packets that carry NDN traffic.
-IP anonymization has been performed on these packets.
+Address anonymization has been performed on these packets.
 When feasible, NDN packet payload, including Interest ApplicationParameters and Data Content, is zeroized, so that the output can be compressed effectively.
+Payload blanking may be disabled with `--keep-payload` flag.
 
 The **records** file is a [Newline delimited JSON (NDJSON)](https://github.com/ndjson/ndjson-spec) file.
 Each line in this file is a JSON object that describes a NDN packet, either layer 2 or layer 3.
@@ -71,6 +72,7 @@ This may be used with [logrotate](https://man7.org/linux/man-pages/man8/logrotat
 To ensure privacy compliance, ndntdump anonymizes IP and MAC addresses before output files are written.
 IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits; MAC address keeps its leading 24 bits.
 Lower bits are XOR'ed with a random value, which is consistent in each run, so that the same original address yields the same anonymized address.
+Notice that this is a very simple and limited anonymization procedure, and we will incorporate better anonymization techniques in the future.
 
 For WebSocket traffic, HTTP request header `X-Forwarded-For` may contain full client address.
 This address is anonymized by changing the lower bits to zeros.
