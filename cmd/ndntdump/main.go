@@ -85,7 +85,7 @@ var app = &cli.App{
 			IsLocal:       input.IsLocal,
 			TCPPort:       c.Int("tcp-port"),
 			WebSocketPort: c.Int("wss-port"),
-			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac")),
+			Anonymizer:    ndntdump.NewAnonymizer(keepIPs, c.Bool("keep-mac"), nil),
 			KeepPayload:   c.Bool("keep-payload"),
 		})
 

@@ -10,13 +10,16 @@ import (
 	"go4.org/netipx"
 )
 
+// AnonymizerSecretLen is the length of secret key inside Anonymizer.
+const AnonymizerSecretLen = 14
+
 // Anonymizer anonymizes IP addresses and MAC addresses.
 // IPv4 address keeps its leading 24 bits; IPv6 address keeps its leading 48 bits; MAC address keeps its leading 24 bits.
 // Lower bits are XOR'ed with a random value.
 type Anonymizer struct {
 	keepIPs *netipx.IPSet
 	keepMAC bool
-	secret  [14]byte
+	secret  [AnonymizerSecretLen]byte
 }
 
 // AnonymizeIP anonymizes an IP address.
@@ -41,12 +44,16 @@ func (anon *Anonymizer) AnonymizeMAC(mac net.HardwareAddr) {
 }
 
 // NewAnonymizer creates Anonymizer.
-func NewAnonymizer(keepIPs *netipx.IPSet, keepMAC bool) (anon *Anonymizer) {
+func NewAnonymizer(keepIPs *netipx.IPSet, keepMAC bool, secret *[AnonymizerSecretLen]byte) (anon *Anonymizer) {
 	anon = &Anonymizer{
 		keepIPs: keepIPs,
 		keepMAC: keepMAC,
 	}
-	rand.Read(anon.secret[:])
+	if secret == nil {
+		rand.Read(anon.secret[:])
+	} else {
+		anon.secret = *secret
+	}
 	return
 }
 
