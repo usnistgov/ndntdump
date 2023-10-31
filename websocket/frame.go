@@ -69,7 +69,7 @@ func (f *Frame) Unmask() {
 	for i := range f.Payload {
 		f.Payload[i] ^= f.MaskingKey[i%4]
 	}
-	f.MaskingKey[0], f.MaskingKey[1], f.MaskingKey[2], f.MaskingKey[3] = 0, 0, 0, 0
+	clear(f.MaskingKey)
 }
 
 // ExtractBinaryFrames extracts unfragmented binary frames from TCP payload.
