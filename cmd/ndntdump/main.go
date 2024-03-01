@@ -92,6 +92,7 @@ var app = &cli.App{
 		if output, e = fileoutput.Open(c.String("json"), c.String("pcapng")); e != nil {
 			return cli.Exit(e, 1)
 		}
+		defer output.Close()
 
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -119,9 +120,6 @@ var app = &cli.App{
 	After: func(c *cli.Context) error {
 		if input != nil {
 			input.Close()
-		}
-		if output != nil {
-			output.Close()
 		}
 		return nil
 	},
