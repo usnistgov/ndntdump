@@ -11,7 +11,6 @@ It is in beta stage and will continue to be updated.
 ## Installation
 
 This program is written in Go.
-It requires both Go compiler and C compiler.
 You can compile and install this program with:
 
 ```bash
@@ -21,7 +20,7 @@ go install github.com/usnistgov/ndntdump/cmd/ndntdump@latest
 This program is also available as a Docker container:
 
 ```bash
-docker build -t ndntdump 'github.com/usnistgov/ndntdump#main'
+docker build -t localhost/ndntdump 'github.com/usnistgov/ndntdump#main'
 ```
 
 ## Capture Modes

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 )
 

@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/pcapgo"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 )

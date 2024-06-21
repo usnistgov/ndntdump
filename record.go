@@ -3,7 +3,7 @@ package ndntdump
 import (
 	"io"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/usnistgov/ndn-dpdk/ndn"
 )
 

@@ -3,8 +3,8 @@ package fileoutput
 import (
 	"errors"
 
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
+	"github.com/gopacket/gopacket/layers"
+	"github.com/gopacket/gopacket/pcapgo"
 	"github.com/usnistgov/ndntdump"
 )
 

@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/afpacket"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/afpacket"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"github.com/zyedidia/generic/mapset"
 )

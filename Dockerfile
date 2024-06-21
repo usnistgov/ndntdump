@@ -1,8 +1,8 @@
-FROM golang:1.22-bookworm AS build
+FROM golang:1.22-alpine3.20 AS build
 WORKDIR /app
 COPY . .
-RUN env GOBIN=/build go install ./cmd/ndntdump
+RUN env CGO_ENABLED=0 GOBIN=/build go install ./cmd/ndntdump
 
-FROM debian:bookworm-slim
+FROM scratch
 COPY --from=build /build/* /
 ENTRYPOINT ["/ndntdump"]
