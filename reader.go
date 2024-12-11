@@ -219,7 +219,7 @@ func (r *Reader) readPacket(rec *Record) bool {
 			rec.Size3 = r.tlv.Element.Size()
 		case an.TtLpPacket:
 			d := tlv.DecodingBuffer(r.tlv.Element.Value)
-			for _, child := range d.Elements() {
+			for child := range d.IterElements() {
 				if child.Type == an.TtLpPayload {
 					rec.Size3 = child.Length()
 				}
