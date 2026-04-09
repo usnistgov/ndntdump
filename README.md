@@ -5,8 +5,8 @@ It can perform online processing including address anonymization for privacy pro
 
 [![NDNgo logo](https://cdn.jsdelivr.net/gh/usnistgov/ndn-dpdk@7ebd6ec90a34d5e52b6860f16317500bca0c1ae6/docs/NDNgo-logo.svg)](https://github.com/usnistgov/ndn-dpdk/tree/main/ndn)
 
-This software is developed at the [Smart Connected Systems Division](https://www.nist.gov/ctl/smart-connected-systems-division) of the [National Institute of Standards and Technology](https://www.nist.gov/).
-It is in beta stage and will continue to be updated.
+This software is developed at the [Communications Technology Laboratory](https://www.nist.gov/ctl) of the [National Institute of Standards and Technology](https://www.nist.gov/).
+It is no longer in development but may see occasional maintenance updates.
 
 ## Installation
 
