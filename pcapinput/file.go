@@ -1,6 +1,7 @@
 package pcapinput
 
 import (
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"io"
@@ -11,7 +12,6 @@ import (
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/pcapgo"
 	"github.com/klauspost/compress/zstd"
-	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 )
 
 type fileHandle struct {
@@ -68,7 +68,7 @@ func (hdl *fileHandle) Name() string {
 }
 
 func (hdl *fileHandle) IsLocal(mac net.HardwareAddr) bool {
-	return macaddr.Equal(hdl.local, mac)
+	return bytes.Equal(hdl.local, mac)
 }
 
 func (hdl *fileHandle) ZeroCopyReadPacketData() (wire []byte, ci gopacket.CaptureInfo, e error) {

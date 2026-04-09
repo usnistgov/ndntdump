@@ -2,11 +2,11 @@
 package ndntdump
 
 import (
+	"bytes"
 	"net"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
-	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/ndnlayer"
@@ -92,7 +92,7 @@ RETRY:
 		switch layerType {
 		case layers.LayerTypeEthernet:
 			switch {
-			case macaddr.Equal(r.eth.SrcMAC, r.eth.DstMAC):
+			case bytes.Equal(r.eth.SrcMAC, r.eth.DstMAC):
 				if len(r.decoded) >= 3 && r.decoded[2] == layers.LayerTypeTCP {
 					switch {
 					case r.tcp.SrcPort == r.tcpPort, r.tcp.SrcPort == r.wssPort:
